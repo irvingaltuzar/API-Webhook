@@ -361,3 +361,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/backend-cva
+/cvl_frontend
+/intranet2020_frontend
+/intranet2020_backend
+/ProveedoresWeb
