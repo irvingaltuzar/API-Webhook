@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json.Linq;
 using Procore.AlfaDB;
 using Procore.Configuration;
 using Procore.Data;
 using Procore.Services;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,10 +17,13 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 // Agregar la configuración al contenedor de servicios
-builder.Services.AddDbContext<DbAlfaContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("Intranet_DB")));
+builder.Services.AddDbContext<DbAlfaContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("IntranetDB")));
 //Servicios de MailKit para correos
 builder.Services.Configure<MailSettings>(builder.Configuration.GetSection(nameof(MailSettings)));
 builder.Services.AddTransient<IMailService, MailService>();
+
+//Service Jobs async
+//builder.Services.AddHostedService<JobsService>();
 
 var app = builder.Build();
 

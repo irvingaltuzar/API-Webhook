@@ -58,7 +58,7 @@ namespace Procore.Data
                 }
                 else if (response.StatusCode == HttpStatusCode.Unauthorized) // Comprueba si el código de estado es 401 (Unauthorized)
                 {
-                    //jsonData = await RefreshToken("/oauth/token");
+                    jsonData = await response.Content.ReadAsStringAsync();
                 }
             }
             catch (Exception ex)
@@ -93,10 +93,12 @@ namespace Procore.Data
             return await response.Content.ReadAsStringAsync();
         }
 
-        public async Task PutDataAsync<T>(T data, string url, int id)
+        public async Task<string> PutDataAsync<T>(T data, string url, long id,string company_id)
         {
             var json = JsonConvert.SerializeObject(data);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
+            // Agregar el encabezado Procore-Company-Id
+            _client.DefaultRequestHeaders.Add("Procore-Company-Id", company_id );
             var response =
                 await _client.PutAsync(string.Concat(url, "/", id.ToString()), content);
 
@@ -105,6 +107,7 @@ namespace Procore.Data
                 throw new Exception(await response.Content.ReadAsStringAsync());
 
             }
+            return await response.Content.ReadAsStringAsync();
         }
 
         public async Task DeleteAsync(string url, int id)

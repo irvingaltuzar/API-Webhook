@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Procore.AlfaDB;
 using Procore.Models;
 using System.Data;
@@ -76,6 +77,7 @@ namespace Procore.Data
 
         public static DataTable Listar(string nombreProcedimiento, List<Parametro> parametros = null)
         {
+            DataTable tabla = new DataTable();
             SqlConnection conexion = new SqlConnection(cadenaConexion);
 
             try
@@ -91,21 +93,24 @@ namespace Procore.Data
                         cmd.Parameters.AddWithValue(parametro.Nombre, parametro.Valor);
                     }
                 }
-                DataTable tabla = new DataTable();
+              
                 SqlDataAdapter da = new SqlDataAdapter(cmd);
                 da.Fill(tabla);
-
-
-                return tabla;
             }
-            catch (Exception )
+            catch (Exception ex)
             {
-                return null;
+                // Crear una tabla con una columna para el mensaje de error
+                tabla.Columns.Add("Error", typeof(string));
+                DataRow row = tabla.NewRow();
+                row["Error"] = "Error: " + ex.Message;
+                tabla.Rows.Add(row);
             }
             finally
             {
                 conexion.Close();
             }
+            return tabla;
+
         }
 
         public static bool Ejecutar(string nombreProcedimiento, List<Parametro> parametros = null)
@@ -139,6 +144,25 @@ namespace Procore.Data
                 conexion.Close();
             }
         }
+        public List<CatSupplierNotification> GetMailSupplierNotification()
+        {
+            try
+            {
+                using (DbAlfaContext db = new DbAlfaContext())
+                {
+                    List<CatSupplierNotification> notifications = db.CatSupplierNotifications
+                                                               .Where(n => n.DeletedAt == null)
+                                                               .ToList();
+                    return notifications;// Devuelve el objeto OauthRefreshTokenProcore si se encuentra uno válido.
+                }
+            }
+            catch (Exception ex)
+            {
+
+                return null;
+            }
+        }
+
         public OauthRefreshTokenProcore GetToken()
         {
             try
@@ -161,7 +185,7 @@ namespace Procore.Data
         {
             try
             {
-                var dbContext = new DbAlfaContext(); // Reemplaza "YourDbContext" con el nombre real de tu DbContext
+                var dbContext = new DbAlfaContext();
 
                 // Actualización en la entidad OAuthTokenProcore
                 var oauthTokensToUpdate = dbContext.OauthTokensProcores
@@ -183,7 +207,7 @@ namespace Procore.Data
 
                 foreach (var oauthRefreshTokenToUpdate in oauthRefreshTokensToUpdate)
                 {
-                    oauthRefreshTokenToUpdate.ExpiresAt = objToken.expires_in_seconds;
+                    oauthRefreshTokenToUpdate.ExpiresAt = objToken.expires_in;
                 }
 
                 // Guarda los cambios para todos los registros de OAuthRefreshTokenProcore
@@ -269,6 +293,35 @@ namespace Procore.Data
 
              
                 return true;
+            }
+            catch (Exception ex)
+            {
+
+                return false;
+            }
+
+        }
+
+        public bool updateVendorAlfa(string rfc,string vendorId)
+        {
+            try
+            {
+                var dbContext = new DbAlfaContext();
+
+                // Actualización en la entidad OAuthTokenProcore
+                var vendorAlfa = dbContext.DmiabaSupplierRegistrations
+                    .Where(o => o.Rfc == rfc) // Filtra los registros que cumplan con el criterio
+                    .ToList();
+
+                foreach (var objVendor in vendorAlfa)
+                {
+                    objVendor.ReferenciaIntelisis = vendorId;
+                }
+
+              
+                dbContext.SaveChanges();
+
+               return true;
             }
             catch (Exception ex)
             {

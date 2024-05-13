@@ -9,6 +9,6 @@ namespace Procore.Models
             Valor = valor;
         }  
         public string Nombre { get; set; }             
-        public string Valor { get; set; }
+        public string? Valor { get; set; }
     }
 }

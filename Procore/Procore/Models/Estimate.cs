@@ -6,9 +6,9 @@ namespace Procore.Models
 
     public class Estimate
     {
-        public string[] attachments { get; set; }
-        public DateTime billing_date { get; set; }
-        public string comment { get; set; }
+        public Attachment[] attachments { get; set; }
+        public DateTime? billing_date { get; set; }
+        public string? comment { get; set; }
         public long? commitment_id { get; set; }
         public string commitment_type { get; set; }
         public string contract_name { get; set; }
@@ -25,16 +25,16 @@ namespace Procore.Models
         public int number { get; set; }
         public object origin_data { get; set; }
         public object origin_id { get; set; }
-        public DateTime payment_date { get; set; }
+        public DateTime? payment_date { get; set; }
         public PaymentSummary payment_summary { get; set; }
         public string percent_complete { get; set; }
         public long? period_id { get; set; }
         public long? previous_requisition_id { get; set; }
         public long? project_id { get; set; }
-        public DateTime requisition_end { get; set; }
-        public DateTime requisition_start { get; set; }
+        public DateTime? requisition_end { get; set; }
+        public DateTime? requisition_start { get; set; }
         public string status { get; set; }
-        public DateTime submitted_at { get; set; }
+        public DateTime? submitted_at { get; set; }
         public Summary summary { get; set; }
         public decimal total_claimed_amount { get; set; }
         public DateTime updated_at { get; set; }
@@ -91,5 +91,12 @@ namespace Procore.Models
         public string total_earned_less_retainage { get; set; }
         public string total_retainage { get; set; }
     }
-
+    public class Attachment
+    {
+        public long id { get; set; }
+        public string content_type { get; set; }
+        public string filename { get; set; }
+        public string name { get; set; }
+        public string url { get; set; }
+    }
 }

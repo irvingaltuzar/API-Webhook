@@ -2,7 +2,7 @@
 {
     public class CompanyVendor
     {
-        public long? id { get; set; }
+        public long id { get; set; }
         public string abbreviated_name { get; set; }
         public string address { get; set; }
         public List<object> attachments { get; set; }
