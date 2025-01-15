@@ -13,7 +13,7 @@
         public object metadata { get; set; } = null!;   
 
         public long? project_id { get; set; }
-        public long? resource_id { get; set; }
+        public long resource_id { get; set; }
         public string resource_name { get; set; } = null!;
         public DateTime? timestamp { get; set; }
         public string ulid { get; set; } = null!;   

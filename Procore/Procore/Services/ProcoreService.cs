@@ -15,12 +15,32 @@ namespace Procore.Services
     public class ProcoreService 
     {
         private Dictionary<string, Func<WebHookProcore, Task<string>>> opciones = new Dictionary<string, Func<WebHookProcore, Task<string>>>();
-       private  Dictionary<string, int> actions = new Dictionary<string, int>
-        {
-            { "update", 1 },
-            { "delete", 2 },
-            { "create", 3 }
-        };
+        //private Dictionary<string, int> actions = new Dictionary<string, int>
+        //{
+        //    { "create", 1 },
+        //    { "update", 2 },
+        //    { "delete", 3 }
+
+        //};
+
+        // Dictionarios de acciones específicos para cada tipo de recurso
+        private static readonly Dictionary<string, int> workOrderContractsActions = new Dictionary<string, int>
+    {
+        { "create", 1 },
+        { "update", 1 }
+    };
+
+        private static readonly Dictionary<string, int> drawRequestsActions = new Dictionary<string, int>
+    {
+        { "create", 3 },
+        { "update", 3 },
+        { "delete", 4 },
+    };
+
+        private static readonly Dictionary<string, int> purchaseOrderContractsActions = new Dictionary<string, int>
+    {
+        { "create", 5 }
+    };
 
         private Context _Context;
         private DBDatos _dbDatos;
@@ -48,22 +68,37 @@ namespace Procore.Services
                 return "Opción no válida";
             }
         }
-        public int ProcesarAccion(string action)
+        //public int ProcesarAccion(string action)
+        //{
+        //    if (actions.ContainsKey(action))
+        //    {
+        //        int valor = actions[action];
+        //        return valor;
+        //    }
+        //    else
+        //    {
+        //        return 0;
+        //    }
+        //}
+        public int ProcesarAccion(string eventType, string resourceName)
         {
-            if (actions.ContainsKey(action))
+            switch (resourceName)
             {
-                int valor = actions[action];
-                return valor;
-            }
-            else
-            {
-                return 0;
+                case "Work Order Contracts":
+                    return workOrderContractsActions.ContainsKey(eventType) ? workOrderContractsActions[eventType] : 0;
+                case "Draw Requests":
+                    return drawRequestsActions.ContainsKey(eventType) ? drawRequestsActions[eventType] : 0;
+                case "Purchase Order Contracts":
+                    return purchaseOrderContractsActions.ContainsKey(eventType) ? purchaseOrderContractsActions[eventType] : 0;
+                default:
+                    return 0; // 0 podría indicar una acción desconocida o no soportada
             }
         }
         private async Task<string> WorkOrderContracts(WebHookProcore data)
         {
             string response = "";
             string eventType = data.event_type;
+            string resource_name = data.resource_name;
             var jsonContract = await _Context.WorkOrderContracts(data);
 
             if (jsonContract == null)
@@ -89,7 +124,7 @@ namespace Procore.Services
                         };
                     json = JsonConvert.SerializeObject(diccionario, Formatting.Indented);
                     //get option {int} to (create,delete or update)
-                    int option = ProcesarAccion(eventType);
+                    int option = ProcesarAccion(eventType, resource_name);
                     //execute spProcore PrincipalDMI
                     _dbDatos = new DBDatos();
                     response = _dbDatos.spProcore(json, option);
@@ -106,8 +141,9 @@ namespace Procore.Services
                     string st = firstObject["status"].ToString();
                     string msg = firstObject["msg"].ToString();
                     string subject = firstObject["subject"].ToString();
-                    string Prov = firstObject["vendor"].ToString();
+                    string Prov = firstObject.ContainsKey("vendor") ? firstObject["vendor"].ToString() : null;
                     string ProvRFC = firstObject.ContainsKey("vendorRFC") ? firstObject["vendorRFC"].ToString() : null;
+                    string Contract = firstObject.ContainsKey("contract") ? firstObject["contract"].ToString() : null;
                     string type = "";
 
                     EmailParameter objEmail = new EmailParameter();
@@ -115,15 +151,33 @@ namespace Procore.Services
                     objEmail.Message = msg;
                     objEmail.Template = st;
                     objEmail.Email = new List<string>();
-                    if(st=="validation")
+                    if (st == "validation")
                     {
-                        List<string> emailUser = new List<string>();
-                        emailUser.Add(userInfo.email_address);
-                        objEmail.Email.AddRange(emailUser);
+                        if (Contract == null || string.IsNullOrEmpty(Contract.ToString()))
+                        {
+
+                            //create data json for update license number
+
+                            var dataContract = new Dictionary<object, object>{
+                            { "project_id", data.project_id },
+                            { "work_order_contract", new Dictionary<string, object>
+                                        {
+                                            { "status", "Draft" }
+                                        }
+                            }
+                        };
+
+                            //await _Context.updateStatusContract(dataContract, data.resource_id, data.company_id.ToString());
+                            //create data for send email
+                            List<string> emailUser = new List<string>();
+                            emailUser.Add(userInfo.email_address);
+                            objEmail.Email.AddRange(emailUser);
+                        }
+                    
                     }
-                    else
+                    else if (st == "success")
                     {
-                        if (Prov != "")
+                        if (Prov != "" || Prov!= null)
                         {
                             //create data json for update license number
 
@@ -136,7 +190,6 @@ namespace Procore.Services
                             }
                         };
                             //serialize data json vendor 
-                            //string jsonvendor = JsonConvert.SerializeObject(dataVendor, Formatting.Indented);
                             //put update vendor in procore
                             await _Context.updateVendorProcore(dataVendor, lvendor.id, data.company_id.ToString());
                             _dbDatos.updateVendorAlfa(ProvRFC, Prov);
@@ -151,9 +204,17 @@ namespace Procore.Services
                                 emailList.Add(notification.Mail);
                             }
                             objEmail.Email.AddRange(emailList);
+
+                            //success to user 
+                            List<string> emailUser = new List<string>();
+                            emailUser.Add(userInfo.email_address);
+                            objEmail.Email.AddRange(emailUser);
                         }
                     }
-                    var resEmail = SendEmail(objEmail);
+                    if (objEmail.Email.Count > 0)
+                    {
+                        var resEmail = SendEmail(objEmail);
+                    }
                 }
                 else
                 {
@@ -168,50 +229,59 @@ namespace Procore.Services
         {
             string eventType = data.event_type;
             string response = "";
+            string json = "";
+            _dbDatos = new DBDatos();
 
-            var estimate = await _Context.ContractsPayments(data);
-
-            if(estimate != null)
+            if (eventType == "delete")
             {
-
-            Estimate contractPayment = JsonConvert.DeserializeObject<Estimate>(estimate);
-
-            if (contractPayment.status == "approved")
+                json = JsonConvert.SerializeObject(data, Formatting.Indented);
+                response = _dbDatos.spProcore(json, 4);
+            }
+            else
             {
-                string json = ""; 
+                var estimate = await _Context.ContractsPayments(data);
 
-                    foreach (Attachment attachment in contractPayment.attachments)
+                if (estimate != null)
+                {
+
+                    Estimate contractPayment = JsonConvert.DeserializeObject<Estimate>(estimate);
+
+                    if (contractPayment.status == "approved")
                     {
-                        if (attachment.content_type == "text/xml")
-                        {
-                            var stat = FileDownload(attachment.url, attachment.filename);
-                        }
-                    }
 
-                var items = await _Context.ContractsPaymentsDetail(data);
-                List<EstimateDetail> details = JsonConvert.DeserializeObject<List<EstimateDetail>>(items);
-                var codes = await _Context.getListCodes(data);
-                List<CostCode> listCodes = JsonConvert.DeserializeObject<List<CostCode>>(codes);
-                var diccionario = new Dictionary<object, object>
+
+                        foreach (Attachment attachment in contractPayment.attachments)
+                        {
+                            if (attachment.content_type == "text/xml")
+                            {
+                                var stat = FileDownload(attachment.url, attachment.filename);
+                            }
+                        }
+
+                        var items = await _Context.ContractsPaymentsDetail(data);
+                        List<EstimateDetail> details = JsonConvert.DeserializeObject<List<EstimateDetail>>(items);
+                        var codes = await _Context.getListCodes(data);
+                        List<CostCode> listCodes = JsonConvert.DeserializeObject<List<CostCode>>(codes);
+                        var diccionario = new Dictionary<object, object>
                 {
                                 { "estimacion", contractPayment },
                                 { "detalle", details },
                                 { "costos", listCodes },
                 };
-              
-                json = JsonConvert.SerializeObject(diccionario, Formatting.Indented);
-                _dbDatos = new DBDatos();
-                response = _dbDatos.spProcore(json, 3);
-            }
-            else{
-                response = "Contrato no se encuentra aprobado.";
-                  
-            }
 
-            }
-            else
-            {
-                response = "No se encontró informacion relacionada desde webhook.";
+                        json = JsonConvert.SerializeObject(diccionario, Formatting.Indented);
+                        response = _dbDatos.spProcore(json, 3);
+                    }
+                    else
+                    {
+
+                    }
+
+                }
+                else
+                {
+                    response = "No se encontró informacion relacionada desde webhook.";
+                }
             }
             return response;
 
@@ -254,7 +324,7 @@ namespace Procore.Services
 
                     json = JsonConvert.SerializeObject(diccionario, Formatting.Indented);
                     _dbDatos = new DBDatos();
-                    response = _dbDatos.spProcore(json, 3);
+                    response = _dbDatos.spProcore(json, 1);
                 }
                 else
                 {

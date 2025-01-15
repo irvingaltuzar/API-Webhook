@@ -82,7 +82,16 @@ namespace Procore.Data
         public async Task<string> updateVendorProcore(Dictionary<object, object> data,long id,string company_id)
              => await _RestService.PutDataAsync<Dictionary<object, object>>(data, "/rest/v1.0/vendors", id,company_id);
 
-        
+
+        /// <summary>
+        /// Update License number vendor procore
+        /// 
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        public async Task<string> updateStatusContract(Dictionary<object, object> data, long id, string company_id)
+             => await _RestService.PutDataAsync<Dictionary<object, object>>(data, "/rest/v1.0/work_order_contracts", id, company_id);
+
         /// <summary>
         /// Asignacion de Token a nuestro de Context Data
         /// </summary>
